@@ -1,25 +1,70 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Activity data Analysis"
+output: html_document
 ---
 
+Loading data and necessary files
 
-## Loading and preprocessing the data
+```{r}
+library(dplyr)
+library(doBy)
+alldata <- read.csv(paste(getwd(),"/activity.csv",sep=""))
+onlynonNAdata <- na.omit(alldata)
+```
 
+What is the mean total number of steps taken per day?
 
+```{r}
+stepsperday <- aggregate(onlynonNAdata$steps, by=list(as.Date(onlynonNAdata$date)), FUN=sum)
+meandays <- aggregate(onlynonNAdata$steps, by=list(as.Date(onlynonNAdata$date)), FUN=mean)
+meanmedian <- summaryBy(onlynonNAdata$steps ~ onlynonNAdata$date, data = onlynonNAdata, FUN = list(mean, median))
+hist(as.numeric(stepsperday[,1]),col="red", main="Total Steps",xlab="Steps")
+names(meanmedian) <- c("Date","Mean","Median")
+meanmedian
+```
 
-## What is mean total number of steps taken per day?
+What is the average daily activity pattern?
 
+```{r}
+meanbytime <- summaryBy(onlynonNAdata$steps ~ onlynonNAdata$interval, data = onlynonNAdata, FUN = list(mean))
+names(meanbytime) <- c("Time","Mean")
+plot(meanbytime$Time,meanbytime$Mean,xlab="Time",ylab="Average steps taken",type="l")
+```
 
+Imputing missing values
 
-## What is the average daily activity pattern?
+```{r}
+modifieddata <- alldata
 
+for (i in 1:nrow(modifieddata))
+  {
+    if (is.na(modifieddata[i,1]))
+      {
+        sub <- subset(meanbytime,as.numeric(meanbytime$Time) == as.numeric(modifieddata[i,3]))
+        modifieddata[i,1] <- sub[,2]
+      }
+  }
 
+modifiedstepsperday <- aggregate(modifieddata$steps, by=list(as.Date(modifieddata$date)), FUN=sum)
+modifiedmeandays <- aggregate(modifieddata$steps, by=list(as.Date(modifieddata$date)), FUN=mean)
+modifiedmeanmedian <- summaryBy(modifieddata$steps ~ modifieddata$date, data = modifieddata, FUN = list(mean, median))
+hist(as.numeric(modifiedstepsperday[,1]),col="red", main="Total Steps",xlab="Steps")
+names(modifiedmeanmedian) <- c("Date","Mean","Median")
+modifiedmeanmedian
+```
 
-## Imputing missing values
+Are there differences in activity patterns between weekdays and weekends?
 
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+modifieddata$wend <- as.factor(ifelse(weekdays(as.Date(modifieddata$date)) %in% c("Saturday","Sunday"), "Weekend", "Weekday"))
+onlyweekend <- subset(modifieddata,modifieddata$wend == "Weekend")
+onlyweekday <- subset(modifieddata,modifieddata$wend == "Weekday")
+meansofweekend <- summaryBy(onlyweekend$steps ~ onlyweekend$interval, data = onlyweekend, FUN = list(mean))
+meansofweekday <- summaryBy(onlyweekday$steps ~ onlyweekday$interval, data = onlyweekday, FUN = list(mean))
+names(meansofweekend) <- c("Time","Mean")
+names(meansofweekday) <- c("Time","Mean")
+plot(meansofweekend$Time,meansofweekend$Mean,xlim=c(0,2355),ylim=c(0,200),xlab="Time",ylab="Average steps taken",type="l")
+par(new=TRUE)
+plot(meansofweekday$Time,meansofweekday$Mean,xlim=c(0,2355),ylim=c(0,200),type="l",col="red",xlab="",ylab="")
+legend("topright",legend=c("Weekend","Weekday"),col = c("black",rep("red",1)), lwd =c(1.5,1.5,1.5))
+```
